@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "sahil",
+	"version": "${version}",
+	"name": "sahil",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/sahil/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"client": [
+			"unblonded.sahil.Sahil"
+		]
+	},
+	"mixins": [
+		"sahil.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
