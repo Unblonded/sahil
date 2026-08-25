@@ -229,7 +229,7 @@ public class Sahil implements ClientModInitializer {
      * already-validated path alongside the chosen villager so callers don't need
      * to recompute (and potentially get a different/failed) path afterwards.
      */
-    private static VillagerAndPath findBestReachableVillagerWithPath(double radius, int maxDistance) {
+    public static VillagerAndPath findBestReachableVillager(double radius, int maxDistance) {
         if (client.player == null || client.world == null) return null;
 
         Vec3d playerPos = client.player.getEntityPos();
@@ -255,41 +255,8 @@ public class Sahil implements ClientModInitializer {
         return null;
     }
 
-    public static VillagerEntity findBestReachableVillager(double radius, int maxDistance) {
-        if (client.player == null || client.world == null) return null;
-
-        System.out.println("Currently traded UUIDs: " + tradedVillagers);
-
-        Vec3d playerPos = client.player.getEntityPos();
-        Box searchBox = client.player.getBoundingBox().expand(radius);
-
-        List<VillagerEntity> nearby = client.world.getEntitiesByClass(
-                VillagerEntity.class, searchBox,
-                v -> !Sahil.tradedVillagers.contains(v.getUuid())
-        );
-
-        for (VillagerEntity v : nearby) {
-            System.out.println("Candidate: " + v.getUuid() + " (excluded=" + Sahil.tradedVillagers.contains(v.getUuid()) + ")");
-        }
-
-        nearby.sort(Comparator.comparingDouble(v -> v.squaredDistanceTo(playerPos)));
-
-        for (VillagerEntity v : nearby) {
-            BlockPos interactPos = PathFinding.findInteractablePositionNear(v.getBlockPos(), maxDistance);
-            if (interactPos == null) continue;
-
-            List<BlockPos> path = PathFinding.findPath(interactPos);
-            if (!path.isEmpty()) {
-                System.out.println("Selected: " + v.getUuid());
-                return v;
-            }
-        }
-
-        return null;
-    }
-
     public static void startNextVillagerSession() {
-        VillagerAndPath found = findBestReachableVillagerWithPath(32.0, 3);
+        VillagerAndPath found = findBestReachableVillager(32.0, 3);
         if (found == null) {
             System.out.println("No more reachable untraded villagers — stopping");
             return;
