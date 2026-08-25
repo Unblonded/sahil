@@ -65,6 +65,7 @@ public class Sahil implements ClientModInitializer {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (screen instanceof MerchantScreen merchantScreen && client.player != null && client.world != null) {
                 localUsesThisSession.clear();
+                trades.clear();
 
                 Box reachBox = client.player.getBoundingBox().expand(6);
                 client.world.getEntitiesByClass(VillagerEntity.class, reachBox, e -> RestockDetector.glowingVillagerIds.contains(e.getId()))
@@ -84,6 +85,22 @@ public class Sahil implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             PathFollower.tick(client);
+
+            while (tradeKeyBinding.wasPressed()) {
+                if (client.currentScreen instanceof MerchantScreen manualScreen) {
+                    MerchantScreenHandler manualHandler = manualScreen.getScreenHandler();
+                    int manualIndex = findMatchingTradeIndex(client, manualHandler, manualHandler.getRecipes(), localUsesThisSession);
+                    if (manualIndex != -1) {
+                        selectTrade(client, manualHandler, manualIndex);
+                        confirmTrade(client, manualHandler);
+                        localUsesThisSession.merge(manualIndex, 1, Integer::sum);
+                        System.out.println("Manual trade executed via keybind, index " + manualIndex);
+                    } else {
+                        System.out.println("Manual trade keybind pressed but no matching trade found");
+                    }
+                }
+            }
+
             if (!autoTrade) return;
             if (!(client.currentScreen instanceof MerchantScreen merchantScreen)) return;
             MerchantScreenHandler handler = merchantScreen.getScreenHandler();
@@ -205,6 +222,39 @@ public class Sahil implements ClientModInitializer {
         }
     }
 
+    private record VillagerAndPath(VillagerEntity villager, List<BlockPos> path) {}
+
+    /**
+     * Same search as findBestReachableVillager, but returns the already-computed,
+     * already-validated path alongside the chosen villager so callers don't need
+     * to recompute (and potentially get a different/failed) path afterwards.
+     */
+    private static VillagerAndPath findBestReachableVillagerWithPath(double radius, int maxDistance) {
+        if (client.player == null || client.world == null) return null;
+
+        Vec3d playerPos = client.player.getEntityPos();
+        Box searchBox = client.player.getBoundingBox().expand(radius);
+
+        List<VillagerEntity> nearby = client.world.getEntitiesByClass(
+                VillagerEntity.class, searchBox,
+                v -> !Sahil.tradedVillagers.contains(v.getUuid())
+        );
+
+        nearby.sort(Comparator.comparingDouble(v -> v.squaredDistanceTo(playerPos)));
+
+        for (VillagerEntity v : nearby) {
+            BlockPos interactPos = PathFinding.findInteractablePositionNear(v.getBlockPos(), maxDistance);
+            if (interactPos == null) continue;
+
+            List<BlockPos> path = PathFinding.findPath(interactPos);
+            if (!path.isEmpty()) {
+                return new VillagerAndPath(v, path);
+            }
+        }
+
+        return null;
+    }
+
     public static VillagerEntity findBestReachableVillager(double radius, int maxDistance) {
         if (client.player == null || client.world == null) return null;
 
@@ -239,14 +289,14 @@ public class Sahil implements ClientModInitializer {
     }
 
     public static void startNextVillagerSession() {
-        VillagerEntity target = findBestReachableVillager(32.0, 3);
-        if (target == null) {
+        VillagerAndPath found = findBestReachableVillagerWithPath(32.0, 3);
+        if (found == null) {
             System.out.println("No more reachable untraded villagers — stopping");
             return;
         }
 
-        BlockPos interactPos = PathFinding.findInteractablePositionNear(target.getBlockPos(), 3);
-        List<BlockPos> path = PathFinding.findPath(interactPos);
+        VillagerEntity target = found.villager();
+        List<BlockPos> path = found.path();
 
         currentTradingTarget = target; // set up front so the tick loop can reference it if needed
 
