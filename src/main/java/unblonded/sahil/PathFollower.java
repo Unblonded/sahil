@@ -26,6 +26,9 @@ public class PathFollower {
 
     private static final double REACH_DISTANCE = 0.4;
     private static final float TURN_SPEED = 2.0f; // degrees per yaw-thread cycle, tune down since it runs much faster than ticks
+    private static final float YAW_DEADZONE = 1.0f; // degrees — stop correcting once this close, kills micro-jitter
+    private static final float SPEED_SMOOTHING = 0.25f; // 0..1, higher = snappier, lower = smoother
+    private static float smoothedSpeedFactor = 0.0f;
 
     private static ScheduledExecutorService yawThread;
     private static final AtomicBoolean yawThreadRunning = new AtomicBoolean(false);
@@ -105,8 +108,9 @@ public class PathFollower {
         float targetYaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
         float currentYaw = player.getYaw();
         float yawDiff = wrapDegrees(targetYaw - currentYaw);
-        float step = Math.min(TURN_SPEED, Math.abs(yawDiff)) * Math.signum(yawDiff);
+        if (Math.abs(yawDiff) < YAW_DEADZONE) return; // deadzone: don't correct tiny errors, avoids wobble
 
+        float step = Math.min(TURN_SPEED, Math.abs(yawDiff)) * Math.signum(yawDiff);
         player.setYaw(currentYaw + step);
     }
 
@@ -136,7 +140,8 @@ public class PathFollower {
         double dz = targetCenter.z - playerPos.z;
         double horizontalDistSq = dx * dx + dz * dz;
 
-        if (horizontalDistSq < REACH_DISTANCE * REACH_DISTANCE) {
+        boolean atOrAboveTargetHeight = player.getBlockPos().getY() >= target.getY();
+        if (horizontalDistSq < REACH_DISTANCE * REACH_DISTANCE && atOrAboveTargetHeight) {
             currentIndex++;
             return;
         }
@@ -146,11 +151,14 @@ public class PathFollower {
         float yawDiff = wrapDegrees(targetYaw - currentYaw);
         float absYawDiff = Math.abs(yawDiff);
 
-        float speedFactor = absYawDiff < 90.0f ? (1.0f - absYawDiff / 90.0f) : 0.0f;
-        //speedFactor = Math.max(speedFactor, 0.3f);
+        float rawSpeedFactor = absYawDiff < 90.0f ? (1.0f - absYawDiff / 90.0f) : 0.0f;
+        smoothedSpeedFactor += (rawSpeedFactor - smoothedSpeedFactor) * SPEED_SMOOTHING; // ramp instead of snap
 
-        dummyInput.setMovementVector(new Vec2f(0, speedFactor));
-        player.input.playerInput = new PlayerInput(speedFactor > 0, false, false, false, false, false, false);
+        boolean needsJump = target.getY() > player.getBlockPos().getY();
+        boolean shouldJump = needsJump && absYawDiff < 45.0f;
+
+        dummyInput.setMovementVector(new Vec2f(0, smoothedSpeedFactor));
+        player.input.playerInput = new PlayerInput(smoothedSpeedFactor > 0.05f, false, false, false, shouldJump, false, false);
     }
 
     private static float wrapDegrees(float degrees) {
