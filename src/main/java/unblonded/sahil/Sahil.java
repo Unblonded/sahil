@@ -53,7 +53,7 @@ public class Sahil implements ClientModInitializer {
     private static final float LOOK_SPEED = 8.0f;
     private static final float LOOK_TOLERANCE = 3.0f;
 
-    private static final int LOW_RESOURCE_THRESHOLD = 128;
+    private static final int LOW_RESOURCE_THRESHOLD = (4*(64));
 
     public static Runnable onAllVillagersDone = null;
 
