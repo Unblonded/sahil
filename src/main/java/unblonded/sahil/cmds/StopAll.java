@@ -23,6 +23,7 @@ public class StopAll extends Command {
             Sahil.currentTradingTarget = null;
             Sahil.tradedVillagers.clear();
             Sahil.onAllVillagersDone = null;
+            Sahil.startedWithFlesh = null;
 
             if (Sahil.client.currentScreen instanceof net.minecraft.client.gui.screen.ingame.MerchantScreen
                     || Sahil.client.currentScreen instanceof net.minecraft.client.gui.screen.ingame.GenericContainerScreen) {

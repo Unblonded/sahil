@@ -58,11 +58,11 @@ public class Sahil implements ClientModInitializer {
     public static Runnable onAllVillagersDone = null;
 
     public static final Set<UUID> tradedVillagers = new HashSet<>();
-    // Optional blacklist box — if set, any interact position inside this box will be skipped.
-    private static Box blacklistBox = null;
 
     public static boolean resupplyPending = false;
-        public static boolean isResupplying = false;
+    public static boolean isResupplying = false;
+
+    public static Boolean startedWithFlesh = null;
 
     /** Force-start a resupply immediately (clears pending and any resupply flags). */
     public static void forceStartResupply() {
@@ -164,15 +164,16 @@ public class Sahil implements ClientModInitializer {
                 }
                 client.player.closeHandledScreen();
 
-                if (countItem(client, Items.ROTTEN_FLESH) < LOW_RESOURCE_THRESHOLD) {
+                if (startedWithFlesh != null && !startedWithFlesh) {
+                    // Session running emerald->bottle only; flesh count is irrelevant, never resupply for it.
+                    queueNextVillagerSession();
+                } else if (countItem(client, Items.ROTTEN_FLESH) < LOW_RESOURCE_THRESHOLD) {
                     System.out.println("Low on flesh after this villager — running resupply");
                     autoTrade = false;
                     if (ChestCycle.isRunning()) {
-                        // Graceful: request resupply and let ChestCycle stop at next safe point
                         System.out.println("ChestCycle already running; requesting graceful resupply when safe");
                         resupplyPending = true;
                     } else {
-                        // No cycle running: start resupply immediately
                         resupplyPending = false;
                         startResupply();
                     }
@@ -200,17 +201,15 @@ public class Sahil implements ClientModInitializer {
         resupplyPending = false;
 
         ChestCycle.startCycle(() -> {
-            // This runs when the cycle completes
             System.out.println("Resupply complete!");
             isResupplying = false;
+            startedWithFlesh = null; // re-evaluate next session — resupply likely gave us flesh back
 
-            // If there's a pending resupply request, start it immediately
             if (resupplyPending) {
                 System.out.println("Starting pending resupply...");
                 resupplyPending = false;
                 startResupply();
             } else {
-                // Resume trading
                 autoTrade = true;
                 queueNextVillagerSession();
             }
@@ -243,7 +242,7 @@ public class Sahil implements ClientModInitializer {
     }
 
     private static int findMatchingTradeIndex(MinecraftClient client, MerchantScreenHandler handler, TradeOfferList recipes, Map<Integer, Integer> localUses) {
-        for (TradeRule rule : RULES) {
+        for (TradeRule rule : getActiveRules(client)) {
             for (int i = 0; i < recipes.size(); i++) {
                 TradeOffer offer = recipes.get(i);
                 if (offer.isDisabled()) continue;
@@ -651,6 +650,14 @@ public class Sahil implements ClientModInitializer {
         } else {
             settleTicksStable = 0;
         }
+    }
+
+    private static List<TradeRule> getActiveRules(MinecraftClient client) {
+        if (startedWithFlesh == null) {
+            startedWithFlesh = countItem(client, Items.ROTTEN_FLESH) > 0;
+            System.out.println("Session started with flesh: " + startedWithFlesh);
+        }
+        return startedWithFlesh ? RULES : RULES.subList(1, RULES.size()); // drop the flesh->emerald rule if none to start
     }
 
     private static float wrapDegrees(float degrees) {
