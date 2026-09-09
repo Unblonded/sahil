@@ -28,6 +28,7 @@ import unblonded.sahil.cmds.AutoTrade;
 import unblonded.sahil.cmds.ChestCycleCmd;
 import unblonded.sahil.cmds.CommandManager;
 import unblonded.sahil.cmds.StopAll;
+import unblonded.sahil.cmds.TradeOnly;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -35,6 +36,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class Sahil implements ClientModInitializer {
     CopyOnWriteArrayList<Trade> trades = new CopyOnWriteArrayList<>();
     public static boolean autoTrade = false;
+    public static boolean tradeOnly = false;
     private static boolean nextVillagerSessionQueued = false;
     private final Map<Integer, Integer> localUsesThisSession = new HashMap<>();
     public static MinecraftClient client;
@@ -85,6 +87,7 @@ public class Sahil implements ClientModInitializer {
         client = MinecraftClient.getInstance();
 
         CommandManager.register(new AutoTrade());
+        CommandManager.register(new TradeOnly());
         CommandManager.register(new ChestCycleCmd());
         CommandManager.register(new StopAll());
         CommandManager.init();
@@ -143,6 +146,27 @@ public class Sahil implements ClientModInitializer {
                         System.out.println("Manual trade keybind pressed but no matching trade found");
                     }
                 }
+            }
+
+            if (tradeOnly) {
+                if (!(client.currentScreen instanceof MerchantScreen merchantScreen)) return;
+                MerchantScreenHandler handler = merchantScreen.getScreenHandler();
+
+                int index = findMatchingTradeIndex(client, handler, handler.getRecipes(), localUsesThisSession);
+                if (index != -1) {
+                    selectTrade(client, handler, index);
+                    confirmTrade(client, handler);
+                    localUsesThisSession.merge(index, 1, Integer::sum);
+                    System.out.println("TradeOnly executed trade index " + index);
+                } else {
+                    System.out.println("TradeOnly: no more matching trades in current GUI");
+                    if (currentTradingTarget != null) {
+                        tradedVillagers.add(currentTradingTarget.getUuid());
+                        currentTradingTarget = null;
+                    }
+                    client.player.closeHandledScreen();
+                }
+                return;
             }
 
             if (!autoTrade) return;

@@ -14,6 +14,7 @@ public class AutoTrade extends Command {
     @Override
     public void build(LiteralArgumentBuilder<FabricClientCommandSource> builder) {
         builder.executes(context -> {
+            Sahil.tradeOnly = false;
             Sahil.autoTrade = !Sahil.autoTrade;
             MinecraftClient.getInstance().player.sendMessage(Text.literal("Auto Trade is " + (Sahil.autoTrade ? "Enabled" : "Disabled")), false);
             return 1;

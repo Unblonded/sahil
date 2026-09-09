@@ -15,6 +15,7 @@ public class StopAll extends Command {
     public void build(LiteralArgumentBuilder<FabricClientCommandSource> builder) {
         builder.executes(context -> {
             Sahil.autoTrade = false;
+            Sahil.tradeOnly = false;
             ChestCycle.stop();
             // Clear Sahil's resupply flags so resupply can be started again later
             try { Sahil.resupplyPending = false; Sahil.isResupplying = false; } catch (Throwable ignored) {}

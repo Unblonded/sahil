@@ -39,7 +39,7 @@ public class RestockDetector {
     }
 
     public static void applyGlow(VillagerEntity villager) {
-        glowingVillagerIds.add(villager.getId());
+        //glowingVillagerIds.add(villager.getId());
     }
 
     public static void removeGlow(VillagerEntity villager) {
