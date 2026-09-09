@@ -363,7 +363,7 @@ public class Sahil implements ClientModInitializer {
         Box searchBox = client.player.getBoundingBox().expand(radius);
         List<VillagerEntity> nearby = new ArrayList<>(client.world.getEntitiesByClass(
                 VillagerEntity.class, searchBox,
-                v -> !Sahil.tradedVillagers.contains(v.getUuid())
+                v -> tradeOnly || !Sahil.tradedVillagers.contains(v.getUuid())
         ));
 
         List<VillagerEntity> ordered = getVillagersInSerpentineOrder(nearby);
